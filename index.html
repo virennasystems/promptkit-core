@@ -1,134 +1,199 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VIRENNA PromptKit – ZIP Export</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VIRENNA PromptKit</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0077cc" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <style>
-    body { font-family: sans-serif; background: #fff; color: #000; padding: 1em; }
-    .dark-mode { background: #121212; color: #f0f0f0; }
-    select, button, textarea, input { width: 100%; font-size: 1em; margin: 0.5em 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-    textarea { height: 180px; resize: vertical; background: #f9f9f9; }
-    .row { display: flex; gap: 0.5em; flex-wrap: wrap; }
-    .row > * { flex: 1; min-width: 150px; }
+    :root {
+      --bg-color: #fff;
+      --text-color: #000;
+      --input-bg: #f9f9f9;
+      --font-size: 16px;
+      --padding: 1rem;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      padding: var(--padding);
+      margin: 0;
+      font-size: var(--font-size);
+      line-height: 1.4;
+      transition: background 0.3s, color 0.3s;
+    }
+    h2 { font-size: 1.3em; margin-top: 0; }
+    label { display: block; font-size: 0.95em; margin: 0.5em 0 0.2em; }
+    input, select, textarea, button {
+      width: 100%; font-size: 1em; margin-bottom: 0.75em; padding: 0.9em;
+      border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;
+    }
+    textarea {
+      min-height: 180px; resize: vertical; background: var(--input-bg);
+    }
+    button {
+      background: #0077cc; color: #fff; border: none; font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { background: #005fa3; }
+    .row {
+      display: flex; gap: 0.75em; flex-wrap: wrap; margin-bottom: 1em;
+    }
+    .row > * { flex: 1; min-width: 48%; }
+    @media (max-width: 500px) {
+      body { padding: 0.75rem; }
+      h2 { font-size: 1.1em; }
+      .row { flex-direction: column; gap: 0.5em; }
+      .row > * { min-width: 100%; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #121212;
+        --text-color: #f0f0f0;
+        --input-bg: #1e1e1e;
+      }
+    }
+    .dark-mode {
+      --bg-color: #121212;
+      --text-color: #f0f0f0;
+      --input-bg: #1e1e1e;
+    }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+  <h2>VIRENNA PromptKit</h2>
+  <div class="row">
+    <button onclick="PromptKit.toggleDarkMode()">🌓 Dark Mode</button>
+    <button onclick="PromptKit.addPrompt()">➕ Prompt hinzufügen</button>
+  </div>
+  <label for="filter">🔍 Filter</label>
+  <input type="text" id="filter" placeholder="z. B. system, analyse..." oninput="PromptKit.applyFilter()" />
+  
+  <label for="promptList">Prompt-Auswahl</label>
+  <select id="promptList" onchange="PromptKit.updatePrompt()">
+    <option value="">– Prompt wählen –</option>
+  </select>
+
+  <label for="promptBox">Prompt-Inhalt</label>
+  <textarea id="promptBox" readonly placeholder="Hier erscheint der gewählte Prompt..."></textarea>
+  
+  <div class="row">
+    <button onclick="PromptKit.copyPrompt()">📋 Prompt kopieren</button>
+    <button onclick="PromptKit.exportAsZip()">📦 ZIP-Export</button>
+  </div>
+  <label for="fileInput">Prompts importieren</label>
+  <input type="file" id="fileInput" accept=".json" onchange="PromptKit.importPrompts(event)" />
+
   <script>
-    let promptDB = {};
-
-    function loadFromStorage() {
-      const saved = localStorage.getItem("promptkit_prompts");
-      if (saved) {
-        promptDB = JSON.parse(saved);
-        refreshPromptList();
-      }
-    }
-
-    function saveToStorage() {
-      localStorage.setItem("promptkit_prompts", JSON.stringify(promptDB));
-    }
-
-    function refreshPromptList() {
-      const list = document.getElementById("promptList");
-      list.innerHTML = '<option value="">– Prompt wählen –</option>';
-      for (const key in promptDB) {
-        const opt = document.createElement("option");
-        opt.value = key;
-        opt.innerText = key;
-        opt.setAttribute("data-tags", (promptDB[key].tags || []).join(","));
-        list.appendChild(opt);
-      }
-    }
-
-    function updatePrompt() {
-      const key = document.getElementById("promptList").value;
-      document.getElementById("promptBox").value = key && promptDB[key] ? promptDB[key].text : "";
-    }
-
-    function copyPrompt() {
-      const box = document.getElementById("promptBox");
-      box.select();
-      document.execCommand("copy");
-      alert("📋 Prompt kopiert!");
-    }
-
-    function toggleDarkMode() {
-      document.body.classList.toggle("dark-mode");
-    }
-
-    function addPrompt() {
-      const title = prompt("Neuer Prompt-Name:");
-      const content = prompt("Prompt-Inhalt:");
-      const tags = prompt("Tags (durch Kommas getrennt):");
-      if (title && content) {
-        promptDB[title] = {
-          text: content,
-          tags: tags ? tags.split(",").map(t => t.trim()) : []
-        };
-        saveToStorage();
-        refreshPromptList();
-        alert("✅ Prompt hinzugefügt!");
-      }
-    }
-
-    function applyFilter() {
-      const filter = document.getElementById("filter").value.toLowerCase();
-      const options = document.getElementById("promptList").options;
-      for (let i = 0; i < options.length; i++) {
-        const tags = options[i].getAttribute("data-tags");
-        options[i].style.display = (!tags || filter === "" || tags.toLowerCase().includes(filter)) ? "block" : "none";
-      }
-    }
-
-    function importPrompts(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const imported = JSON.parse(e.target.result);
-          for (const key in imported) {
-            promptDB[key] = imported[key];
-          }
-          saveToStorage();
+    const PromptKit = (() => {
+      let promptDB = {};
+      const loadFromStorage = () => {
+        const saved = localStorage.getItem("promptkit_prompts");
+        if (saved) {
+          promptDB = JSON.parse(saved);
           refreshPromptList();
-          alert("📥 Prompts importiert!");
-        } catch (err) {
-          alert("❌ Fehler beim Import: " + err.message);
         }
       };
-      reader.readAsText(file);
-    }
-
-    function exportAsZip() {
-      const zip = new JSZip();
-      zip.file("VIRENNA_Prompts.json", JSON.stringify(promptDB, null, 2));
-      zip.file("README.txt", "Dies ist eine automatisch generierte ZIP-Datei mit VIRENNA-Prompts.");
-
-      zip.generateAsync({ type: "blob" })
-        .then(function(content) {
+      const saveToStorage = () => {
+        localStorage.setItem("promptkit_prompts", JSON.stringify(promptDB));
+      };
+      const refreshPromptList = () => {
+        const list = document.getElementById("promptList");
+        const filter = document.getElementById("filter").value.toLowerCase();
+        list.innerHTML = '<option value="">– Prompt wählen –</option>';
+        Object.entries(promptDB).forEach(([key, val]) => {
+          const tags = (val.tags || []).join(",");
+          if (!filter || tags.toLowerCase().includes(filter)) {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.innerText = key;
+            opt.setAttribute("data-tags", tags);
+            list.appendChild(opt);
+          }
+        });
+      };
+      const updatePrompt = () => {
+        const key = document.getElementById("promptList").value;
+        document.getElementById("promptBox").value = key && promptDB[key] ? promptDB[key].text : "";
+      };
+      const copyPrompt = () => {
+        const text = document.getElementById("promptBox").value;
+        navigator.clipboard.writeText(text).then(() => alert("📋 Prompt kopiert!"));
+      };
+      const toggleDarkMode = () => document.body.classList.toggle("dark-mode");
+      const addPrompt = () => {
+        const title = prompt("Neuer Prompt-Name:");
+        if (!title || promptDB[title]) return alert("❗ Titel ungültig oder bereits vorhanden!");
+        const content = prompt("Prompt-Inhalt:");
+        const tags = prompt("Tags (durch Kommas getrennt):");
+        if (title && content) {
+          promptDB[title] = { text: content, tags: tags ? tags.split(",").map(t => t.trim()) : [] };
+          saveToStorage(); refreshPromptList(); alert("✅ Prompt hinzugefügt!");
+        }
+      };
+      const applyFilter = () => refreshPromptList();
+      const importPrompts = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const imported = JSON.parse(e.target.result);
+            if (typeof imported !== "object") throw new Error("Keine gültige JSON-Struktur.");
+            for (const key in imported) {
+              promptDB[key] = imported[key];
+            }
+            saveToStorage();
+            refreshPromptList();
+            alert("📥 Prompts importiert!");
+          } catch (err) {
+            alert("❌ Fehler beim Import: " + err.message);
+          }
+        };
+        reader.readAsText(file);
+      };
+      const exportAsZip = () => {
+        if (!window.JSZip) {
+          const script = document.createElement("script");
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+          script.onload = runZipExport;
+          document.head.appendChild(script);
+        } else runZipExport();
+      };
+      const runZipExport = () => {
+        const zip = new JSZip();
+        const filter = document.getElementById("filter").value.toLowerCase();
+        const filtered = {};
+        for (const [key, val] of Object.entries(promptDB)) {
+          const tags = (val.tags || []).join(",").toLowerCase();
+          if (!filter || tags.includes(filter)) filtered[key] = val;
+        }
+        zip.file("VIRENNA_Prompts.json", JSON.stringify(filtered, null, 2));
+        zip.file("README.txt", "Dies ist eine automatisch generierte ZIP-Datei mit gefilterten VIRENNA-Prompts.");
+        zip.generateAsync({ type: "blob" }).then(content => {
           const a = document.createElement("a");
           a.href = URL.createObjectURL(content);
           a.download = "VIRENNA_Prompts_Export.zip";
           a.click();
         });
+      };
+      window.addEventListener("load", loadFromStorage);
+      return {
+        toggleDarkMode, addPrompt, updatePrompt,
+        applyFilter, importPrompts, exportAsZip, copyPrompt
+      };
+    })();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js")
+          .then(reg => console.log("✅ SW registriert:", reg.scope))
+          .catch(err => console.error("❌ Fehler bei SW:", err));
+      });
     }
   </script>
-</head>
-<body onload="loadFromStorage()">
-  <h2>VIRENNA PromptKit – ZIP Export</h2>
-  <div class="row">
-    <button onclick="toggleDarkMode()">🌓 Dark Mode</button>
-    <button onclick="addPrompt()">➕ Prompt hinzufügen</button>
-  </div>
-  <input type="text" id="filter" placeholder="🔍 Filter (z. B. system, analyse...)" oninput="applyFilter()" />
-  <select id="promptList" onchange="updatePrompt()"></select>
-  <textarea id="promptBox" readonly placeholder="Hier erscheint der gewählte Prompt..."></textarea>
-  <div class="row">
-    <button onclick="copyPrompt()">📋 Prompt kopieren</button>
-    <button onclick="exportAsZip()">📦 ZIP-Export</button>
-  </div>
-  <input type="file" accept=".json" onchange="importPrompts(event)" />
 </body>
 </html>

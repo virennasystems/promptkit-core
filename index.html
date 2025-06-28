@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VIRENNA PromptKit – ZIP Export</title>
+  <style>
+    body { font-family: sans-serif; background: #fff; color: #000; padding: 1em; }
+    .dark-mode { background: #121212; color: #f0f0f0; }
+    select, button, textarea, input { width: 100%; font-size: 1em; margin: 0.5em 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    textarea { height: 180px; resize: vertical; background: #f9f9f9; }
+    .row { display: flex; gap: 0.5em; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 150px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    let promptDB = {};
+
+    function loadFromStorage() {
+      const saved = localStorage.getItem("promptkit_prompts");
+      if (saved) {
+        promptDB = JSON.parse(saved);
+        refreshPromptList();
+      }
+    }
+
+    function saveToStorage() {
+      localStorage.setItem("promptkit_prompts", JSON.stringify(promptDB));
+    }
+
+    function refreshPromptList() {
+      const list = document.getElementById("promptList");
+      list.innerHTML = '<option value="">– Prompt wählen –</option>';
+      for (const key in promptDB) {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.innerText = key;
+        opt.setAttribute("data-tags", (promptDB[key].tags || []).join(","));
+        list.appendChild(opt);
+      }
+    }
+
+    function updatePrompt() {
+      const key = document.getElementById("promptList").value;
+      document.getElementById("promptBox").value = key && promptDB[key] ? promptDB[key].text : "";
+    }
+
+    function copyPrompt() {
+      const box = document.getElementById("promptBox");
+      box.select();
+      document.execCommand("copy");
+      alert("📋 Prompt kopiert!");
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
+
+    function addPrompt() {
+      const title = prompt("Neuer Prompt-Name:");
+      const content = prompt("Prompt-Inhalt:");
+      const tags = prompt("Tags (durch Kommas getrennt):");
+      if (title && content) {
+        promptDB[title] = {
+          text: content,
+          tags: tags ? tags.split(",").map(t => t.trim()) : []
+        };
+        saveToStorage();
+        refreshPromptList();
+        alert("✅ Prompt hinzugefügt!");
+      }
+    }
+
+    function applyFilter() {
+      const filter = document.getElementById("filter").value.toLowerCase();
+      const options = document.getElementById("promptList").options;
+      for (let i = 0; i < options.length; i++) {
+        const tags = options[i].getAttribute("data-tags");
+        options[i].style.display = (!tags || filter === "" || tags.toLowerCase().includes(filter)) ? "block" : "none";
+      }
+    }
+
+    function importPrompts(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          for (const key in imported) {
+            promptDB[key] = imported[key];
+          }
+          saveToStorage();
+          refreshPromptList();
+          alert("📥 Prompts importiert!");
+        } catch (err) {
+          alert("❌ Fehler beim Import: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function exportAsZip() {
+      const zip = new JSZip();
+      zip.file("VIRENNA_Prompts.json", JSON.stringify(promptDB, null, 2));
+      zip.file("README.txt", "Dies ist eine automatisch generierte ZIP-Datei mit VIRENNA-Prompts.");
+
+      zip.generateAsync({ type: "blob" })
+        .then(function(content) {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(content);
+          a.download = "VIRENNA_Prompts_Export.zip";
+          a.click();
+        });
+    }
+  </script>
+</head>
+<body onload="loadFromStorage()">
+  <h2>VIRENNA PromptKit – ZIP Export</h2>
+  <div class="row">
+    <button onclick="toggleDarkMode()">🌓 Dark Mode</button>
+    <button onclick="addPrompt()">➕ Prompt hinzufügen</button>
+  </div>
+  <input type="text" id="filter" placeholder="🔍 Filter (z. B. system, analyse...)" oninput="applyFilter()" />
+  <select id="promptList" onchange="updatePrompt()"></select>
+  <textarea id="promptBox" readonly placeholder="Hier erscheint der gewählte Prompt..."></textarea>
+  <div class="row">
+    <button onclick="copyPrompt()">📋 Prompt kopieren</button>
+    <button onclick="exportAsZip()">📦 ZIP-Export</button>
+  </div>
+  <input type="file" accept=".json" onchange="importPrompts(event)" />
+</body>
+</html>

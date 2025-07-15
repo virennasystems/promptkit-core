@@ -2,20 +2,21 @@
   "name": "VIRENNA PromptKit",
   "short_name": "PromptKit",
   "start_url": ".",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#121212",
-  "theme_color": "#0077cc",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "icons/web-app-manifest-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icons/web-app-manifest-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "theme_color": "#001D3B",
+  "background_color": "#ffffff",
+  "display": "standalone"
 }

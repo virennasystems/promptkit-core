@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login – VIRENNA PromptKit</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f9f9f9;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    .block-65__logo-container {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .block-65__logo {
+      height: 60px;
+    }
+    .auth-form {
+      border-radius: 8px;
+      padding: 2.5rem;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    .auth-form__title {
+      text-align: center;
+      font-size: 1.3rem;
+      margin-bottom: 1.5rem;
+    }
+    .auth-form__input {
+      width: 100%;
+      padding: 0.9rem 1.2rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+    }
+    .btn-form {
+      width: 100%;
+      padding: 0.9rem;
+      background: #0077cc;
+      color: #fff;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .btn-form:hover {
+      background: #005fa3;
+    }
+    .auth-form__p {
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 1rem;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="block-65__logo-container">
+      <img class="block-65__logo" src="https://frontendor.com/media/logo-shape.svg" alt="Logo" />
+    </div>
+
+    <form id="loginForm" class="auth-form">
+      <h1 class="auth-form__title">Anmeldung</h1>
+
+      <input id="email" class="auth-form__input" type="email" placeholder="E-Mail" required />
+      <input id="password" class="auth-form__input" type="password" placeholder="Passwort" required />
+      <button id="signInBtn" type="button" class="btn-form">Anmelden</button>
+
+      <p id="errorMsg" class="auth-form__p" style="display:none;"></p>
+    </form>
+  </div>
+    <script type="module">
+    import {
+      auth,
+      signInWithEmailAndPassword,
+      onAuthStateChanged
+    } from './firebase-config.js';
+
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const signInBtn = document.getElementById("signInBtn");
+    const errorMsg = document.getElementById("errorMsg");
+
+    signInBtn.addEventListener("click", async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      errorMsg.style.display = "none";
+
+      if (!email || !password) {
+        errorMsg.textContent = "Bitte E-Mail und Passwort eingeben.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        let message = "Unbekannter Fehler.";
+        switch (error.code) {
+          case "auth/user-not-found":
+            message = "Benutzer existiert nicht.";
+            break;
+          case "auth/wrong-password":
+            message = "Falsches Passwort.";
+            break;
+          case "auth/invalid-email":
+            message = "Ungültige E-Mail-Adresse.";
+            break;
+        }
+        errorMsg.textContent = message;
+        errorMsg.style.display = "block";
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.location.href = "index.html";
+      }
+    });
+  </script>
+</body>
+</html>
+

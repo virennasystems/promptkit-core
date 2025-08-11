@@ -16,10 +16,10 @@ import {
 
 // 🔐 Deine Konfiguration
 const firebaseConfig = {
-  apiKey: "DEIN_API_KEY",
+  apiKey: "AIzaSyCeVcxmyCaFmaXUYU-MU-IRS8vFJHt3QCk",
   authDomain: "promptkit-core.firebaseapp.com",
   projectId: "promptkit-core",
-  storageBucket: "promptkit-core.appspot.com",
+  storageBucket: "promptkit-core.firebasestorage.app",
   messagingSenderId: "994242222570",
   appId: "1:994242222570:web:08921e623145024fa87a93"
 };
